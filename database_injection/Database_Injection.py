@@ -116,6 +116,32 @@ class Database_Injection:
         else:
             print(f"Failed to connect to DB in order to plot {ticker}")
 
+    """
+    Function to fetch any ticker's data. All columns.
+    """
+    def fetch_ticker_data(self, ticker):
+        connection = self.create_connection()
+
+        if connection:
+            cursor = connection.cursor()
+            query = """
+            SELECT date, open_price, high_price, low_price, close_price, volume FROM stocks
+            WHERE ticker = %s
+            ORDER BY date;
+            """
+            cursor.execute(query, (ticker,))
+            rows = cursor.fetchall()
+            if not rows:
+                print(f"No data was found for {ticker}")
+                return
+            # Now I convert the query results into a Pandas DataFrame for returnal:
+            df = pd.DataFrame(rows, columns=['date', 'open_price', 'high_price', 'low_price', 'close_price', 'volume'])
+            df['date'] = pd.to_datetime(df['date']) # Ensuring the 'date' column is in datetime format
+
+            connection.close()
+            return df
+
+
 if __name__ == "__main__":
 
     """
@@ -126,4 +152,4 @@ if __name__ == "__main__":
     start = datetime.date(2015, 1, 1) # 01/01/2015
     db_injector = Database_Injection(stocks_file, start, end)
     #db_injector.update_database()
-    db_injector.plot_data('NVDA')
+    db_injector.plot_data('AAPL')
