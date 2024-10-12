@@ -36,9 +36,9 @@ class LinearRegression:
         # Here, we use the 'date' as feature and 'close_price' as the target variable.
         df['date_ordinal'] = df['date'].map(datetime.date.toordinal) # convert date to numerical input
 
-        #X = np.vstack([df['date_ordinal'].values, np.ones(len(df))]).T  # feature matrix
         # Feature matrix (X) will now include multiple features
         X = np.vstack([df['date_ordinal'].values, np.ones(len(df))]).T  # feature matrix
+        # X = df[['date_ordinal', 'open_price', 'volume']].values
         y = df['close_price'].values  # target variable (closing price). Need to add more.
         return X, y
     
@@ -79,7 +79,7 @@ class LinearRegression:
         # Plot the linear regression for each quarter
         for i, (quarter, prediction, year_quarter) in enumerate(quarter_predictions):
             plt.plot(quarter['date'], prediction, label=year_quarter, linestyle='--')
-            plt.fill_between(quarter['date'], prediction, alpha=0.3)
+            plt.fill_between(quarter['date'], 0, TimeSeries['close_price'].max()+50, prediction, alpha=0.3)
 
         # Add vertical lines to separate quarters
         for i in range(1, len(quarter_predictions)):
@@ -166,7 +166,7 @@ if __name__ == "__main__":
 
     ### FOR DEBUGGING PURPOSES
     ticker = 'AAPL'
-    end = datetime.date(2024, 10, 6) # last index
+    end = datetime.date.today() # last index
     start = datetime.date(2015, 1, 1) # 01/01/2015
     linreg = LinearRegression('/Users/costinchitic/Documents/Github/ML101/database_injection/long_stock_symbol_list.txt', start, end)
     linreg._run()

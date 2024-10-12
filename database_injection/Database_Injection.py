@@ -65,7 +65,6 @@ class Database_Injection:
                     # If no data exists, fetch from a default date (or adjust as needed)
                     stock_data = yf.download(ticker, start=self.start_date)
 
-                print(stock_data.head())  # For debugging
                 if not stock_data.empty:
                     self.insert_stock_data(connection, ticker, stock_data)
                 else:
@@ -151,5 +150,5 @@ if __name__ == "__main__":
     end = datetime.date.today() # today
     start = datetime.date(2015, 1, 1) # 01/01/2015
     db_injector = Database_Injection(stocks_file, start, end)
-    #db_injector.update_database()
+    db_injector.update_database()
     db_injector.plot_data('AAPL')
