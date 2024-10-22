@@ -10,8 +10,9 @@ from database_injection.Database_Injection import Database_Injection
 
 class LinearRegression:
 
-    def __init__(self, ticker, start, end):
+    def __init__(self, ticker, ticker_code, start, end):
         self.ticker = ticker
+        self.ticker_code = ticker_code
         self.start_date = start
         self.end_date = end
         self.db_instance = Database_Injection(ticker, start, end)
@@ -42,27 +43,37 @@ class LinearRegression:
         y = df['close_price'].values  # target variable (closing price). Need to add more.
         return X, y
     
-    def plot_prediction(self, simple_prediction, stas_prediction, target, df, confidence = 0.95):
-        df['date'] = pd.to_datetime(df['date']) # Ensuring the 'date' column is in datetime format
+    def plot_prediction(self, simple_prediction, stas_prediction, target, df, confidence=0.95, plot_bounds = False):
+        df['date'] = pd.to_datetime(df['date'])  # Ensure the 'date' column is in datetime format
         residuals = target - simple_prediction
         z = 1.96  # For 95% confidence level
 
-        upper = simple_prediction + z*np.std(residuals)
-        lower = simple_prediction - z*np.std(residuals)
+        # Adjust the prediction level to match the actual closing prices
+        actual_mean = df['close_price'].mean()
+        predicted_mean = simple_prediction.mean()
+        adjustment = actual_mean - predicted_mean
+        simple_prediction += adjustment  # Shift the predicted data
 
-        plt.figure(figsize=(10,6))
-        plt.plot(df['date'], df['close_price'], label = f'{ticker} Closing Price')
-        plt.plot(df['date'], simple_prediction, label = "Predicted Prices", linestyle='--')
-        plt.plot(df['date'], stas_prediction, label = "STAS Predicted Prices", linestyle='--')
+        upper = simple_prediction + z * np.std(residuals)
+        lower = simple_prediction - z * np.std(residuals)
+
+        plt.figure(figsize=(10, 6))
+        plt.plot(df['date'], df['close_price'], label=f'{self.ticker_code} Closing Price')  # Use self.ticker
+        plt.plot(df['date'], simple_prediction, label="Predicted Prices", linestyle='--')
+
+        # Only plot STAS prediction if it is not None
+        if stas_prediction is not None:
+            plt.plot(df['date'], stas_prediction, label="STAS Predicted Prices", linestyle='--')
 
         # Plot bounds:
-        plt.plot(df['date'], lower, label = "LOWER BOUND", linestyle='--')
-        plt.plot(df['date'], upper, label = "UPPER BOUND", linestyle='--')
+        if plot_bounds:
+            plt.plot(df['date'], lower, label="LOWER BOUND", linestyle='--')
+            plt.plot(df['date'], upper, label="UPPER BOUND", linestyle='--')
 
-        plt.fill_between(df['date'], lower, upper, color='orange', alpha=0.3, label='95% Confidence Interval')
+            plt.fill_between(df['date'], lower, upper, color='orange', alpha=0.3, label='95% Confidence Interval')
 
-        plt.title(f'{ticker} Closing prices from {self.start_date} to {self.end_date}')
-        plt.xlabel('Date') 
+        plt.title(f'{self.ticker_code} Closing prices from {self.start_date} to {self.end_date}')  # Use self.start_date, self.end_date
+        plt.xlabel('Date')
         plt.ylabel('Closing Price ($USD)')
         plt.grid(True)
         plt.legend()
@@ -154,19 +165,30 @@ class LinearRegression:
                 quarter_predictions.append((quarter_data, predictions, year_quarter))
 
         self.plot_quarterly_analysis(quarter_predictions, quarters)
+
+
+    def _run_projected_data_from_PCA(self, projected_data, y, ticker_stock_data):
+        coeff_matrix, residuals = self.compute_weights_and_residuals(projected_data, y) # Compute a,b and e
+        simple_prediction = self.compute_prediction(projected_data, coeff_matrix)
+        self.plot_prediction(simple_prediction, None, y, ticker_stock_data)
+
+        SSR = np.sum((y - simple_prediction) ** 2)
+        SST = np.sum((y - np.mean(y)) ** 2)
+        R2 = 1 - (SSR / SST)
+        print(f'R-squared: {R2}')
+
     
     def _run(self):
         
         self._run_full_data()
         self._run_quarterly_analysis_for_last_year()
-        
 
 
 if __name__ == "__main__":
 
     ### FOR DEBUGGING PURPOSES
-    ticker = 'AAPL'
+    ticker = 'NVDA'
     end = datetime.date.today() # last index
     start = datetime.date(2015, 1, 1) # 01/01/2015
-    linreg = LinearRegression('/Users/costinchitic/Documents/Github/ML101/database_injection/long_stock_symbol_list.txt', start, end)
+    linreg = LinearRegression('/Users/costinchitic/Documents/Github/ML101/database_injection/long_stock_symbol_list.txt', ticker, start, end)
     linreg._run()

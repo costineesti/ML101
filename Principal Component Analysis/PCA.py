@@ -17,13 +17,14 @@ https://costinchitic.co/notes/principal_component_analysis
 
 class PCA:
 
-    def __init__(self, no_components, ticker, start, end):
+    def __init__(self, no_components, ticker, ticker_code, start, end):
         self.no_components = no_components
         self.ticker = ticker
+        self.ticker_code = ticker_code
         self.start_date = start
         self.end_date = end
         self.db_instance = Database_Injection(ticker, start, end)
-        self.linear_regression_instance = LinearRegression(ticker, start, end)
+        self.linear_regression_instance = LinearRegression(ticker, ticker_code, start, end)
 
     def prepare_data(self, df):
         # Prepare data for linear regression
@@ -32,7 +33,7 @@ class PCA:
 
         # Feature matrix (X) will now include multiple features
         X = df[['date_ordinal', 'open_price', 'volume']].values
-        y = df['close_price'].values  # target variable (closing price). Need to add more.
+        y = df['close_price'].values # target variable (closing price). Need to add more.
         return X, y
     
     def standardize(self, X):
@@ -164,11 +165,16 @@ class PCA:
         # Now I can project the data onto the principal components
         projected_data = self.project_data(Z, principal_components)
 
+        return projected_data, y, ticker_stock_data
+    
+
 if __name__ == "__main__":
 
     ticker = 'NVDA'
     end = datetime.date.today() # last index
     start = datetime.date(2015, 1, 1) # 01/01/2015
     no_components = 2 # Number of principal components to keep
-    myPCA = PCA(no_components, '/Users/costinchitic/Documents/Github/ML101/database_injection/long_stock_symbol_list.txt', start, end)
-    myPCA._run()
+    myPCA = PCA(no_components, '/Users/costinchitic/Documents/Github/ML101/database_injection/long_stock_symbol_list.txt', ticker, start, end)
+    
+    projected_data, target, ticker_stock_data = myPCA._run()
+    myPCA.linear_regression_instance._run_projected_data_from_PCA(projected_data, target, ticker_stock_data)
