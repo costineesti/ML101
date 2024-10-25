@@ -36,6 +36,7 @@ class LinearRegression:
         # Prepare data for linear regression
         # Here, we use the 'date' as feature and 'close_price' as the target variable.
         df['date_ordinal'] = df['date'].map(datetime.date.toordinal) # convert date to numerical input
+        df['date_ordinal'] -= df['date_ordinal'].min() # Improves numerical stability.
 
         # Feature matrix (X) will now include multiple features
         X = np.vstack([df['date_ordinal'].values, np.ones(len(df))]).T  # feature matrix
@@ -43,7 +44,31 @@ class LinearRegression:
         y = df['close_price'].values  # target variable (closing price). Need to add more.
         return X, y
     
-    def plot_prediction(self, simple_prediction, stas_prediction, target, df, confidence=0.95, plot_bounds = False):
+    def run_gradientDescent(self, learning_rate=0.01, num_iterations=1500):
+        ticker_stock_data = self.db_instance.fetch_ticker_data(self.ticker_code)
+        X, y = self.prepare_data(ticker_stock_data)
+        # Standardize X[:, 0], leave the intercept term untouched
+        mean_X = np.mean(X[:, 0])
+        std_X = np.std(X[:, 0])
+        X[:, 0] = (X[:, 0] - mean_X) / std_X
+        m = y.size
+        no_coeffs = X.shape[1]
+
+        w = np.zeros(no_coeffs) # Initialize with 0 the starting coefficients in order to start the grad descent.
+
+        # Gradient Descent Algorithm.
+        for i in range(num_iterations):
+            predictions = X @ w
+            E = (predictions-y)**2
+            J = 1/(2*m)*np.sum(E) # MSE
+            gradients = 1/m * (X.T @ (predictions-y))
+
+            w -= learning_rate * gradients # Update the weights (theta)
+
+        return X @ w
+
+    
+    def plot_prediction(self, simple_prediction, stas_prediction, target, df, gradient = False, confidence=0.95, plot_bounds = False):
         df['date'] = pd.to_datetime(df['date'])  # Ensure the 'date' column is in datetime format
         residuals = target - simple_prediction
         z = 1.96  # For 95% confidence level
@@ -71,6 +96,11 @@ class LinearRegression:
             plt.plot(df['date'], upper, label="UPPER BOUND", linestyle='--')
 
             plt.fill_between(df['date'], lower, upper, color='orange', alpha=0.3, label='95% Confidence Interval')
+
+        if gradient:
+            gradientDescent_lr = self.run_gradientDescent()
+            plt.plot(df['date'], gradientDescent_lr, label="Linear Regression found with Gradient Descent", linestyle=':')
+
 
         plt.title(f'{self.ticker_code} Closing prices from {self.start_date} to {self.end_date}')  # Use self.start_date, self.end_date
         plt.xlabel('Date')
@@ -123,7 +153,7 @@ class LinearRegression:
 
         simple_prediction = self.compute_prediction(feature_matrix, coeff_matrix)
         stas_linearRegression_prediction, R2_score_STAS = self.STAS_LR(ticker_stock_data)
-        self.plot_prediction(simple_prediction, stas_linearRegression_prediction, target, ticker_stock_data)
+        self.plot_prediction(simple_prediction, stas_linearRegression_prediction, target, ticker_stock_data, gradient=True)
 
         SSR = np.sum(residuals)
         SST = np.sum((target - np.mean(target))**2)
@@ -182,12 +212,12 @@ class LinearRegression:
         
         self._run_full_data()
         self._run_quarterly_analysis_for_last_year()
-
+        
 
 if __name__ == "__main__":
 
     ### FOR DEBUGGING PURPOSES
-    ticker = 'NVDA'
+    ticker = 'AAPL'
     end = datetime.date.today() # last index
     start = datetime.date(2015, 1, 1) # 01/01/2015
     linreg = LinearRegression('/Users/costinchitic/Documents/Github/ML101/database_injection/long_stock_symbol_list.txt', ticker, start, end)

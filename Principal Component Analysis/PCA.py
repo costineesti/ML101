@@ -170,7 +170,7 @@ class PCA:
 
 if __name__ == "__main__":
 
-    ticker = 'NVDA'
+    ticker = 'AAPL'
     end = datetime.date.today() # last index
     start = datetime.date(2015, 1, 1) # 01/01/2015
     no_components = 2 # Number of principal components to keep
