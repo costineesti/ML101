@@ -44,7 +44,7 @@ class LinearRegression:
         y = df['close_price'].values  # target variable (closing price). Need to add more.
         return X, y
     
-    def run_gradientDescent(self, learning_rate=0.01, num_iterations=1500):
+    def run_gradientDescent(self, learning_rate=0.01, num_iterations=700):
         ticker_stock_data = self.db_instance.fetch_ticker_data(self.ticker_code)
         X, y = self.prepare_data(ticker_stock_data)
         # Standardize X[:, 0], leave the intercept term untouched
@@ -54,6 +54,7 @@ class LinearRegression:
         m = y.size
         no_coeffs = X.shape[1]
 
+        loss_history = []
         w = np.zeros(no_coeffs) # Initialize with 0 the starting coefficients in order to start the grad descent.
 
         # Gradient Descent Algorithm.
@@ -64,8 +65,9 @@ class LinearRegression:
             gradients = 1/m * (X.T @ (predictions-y))
 
             w -= learning_rate * gradients # Update the weights (theta)
+            loss_history.append(J)
 
-        return X @ w
+        return X @ w, loss_history
 
     
     def plot_prediction(self, simple_prediction, stas_prediction, target, df, gradient = False, confidence=0.95, plot_bounds = False):
@@ -84,7 +86,7 @@ class LinearRegression:
 
         plt.figure(figsize=(10, 6))
         plt.plot(df['date'], df['close_price'], label=f'{self.ticker_code} Closing Price')  # Use self.ticker
-        plt.plot(df['date'], simple_prediction, label="Predicted Prices", linestyle='--')
+        plt.plot(df['date'], simple_prediction, label="Predicted Prices")
 
         # Only plot STAS prediction if it is not None
         if stas_prediction is not None:
@@ -98,7 +100,7 @@ class LinearRegression:
             plt.fill_between(df['date'], lower, upper, color='orange', alpha=0.3, label='95% Confidence Interval')
 
         if gradient:
-            gradientDescent_lr = self.run_gradientDescent()
+            gradientDescent_lr, loss_history = self.run_gradientDescent()
             plt.plot(df['date'], gradientDescent_lr, label="Linear Regression found with Gradient Descent", linestyle=':')
 
 
@@ -108,6 +110,14 @@ class LinearRegression:
         plt.grid(True)
         plt.legend()
 
+        plt.show()
+
+        plt.figure(figsize=(10, 6))
+        plt.plot(range(loss_history.__len__()), loss_history, label="Loss Function Evolution")
+        plt.title(f'Loss Function Evolution for {self.ticker_code}')
+        plt.xlabel('Number of Iterations')
+        plt.ylabel('Loss Evolution')
+        plt.grid(True)
         plt.show()
 
     def plot_quarterly_analysis(self, quarter_predictions, full_data):

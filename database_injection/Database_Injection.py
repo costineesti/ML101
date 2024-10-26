@@ -3,6 +3,7 @@ import yfinance as yf
 import matplotlib.pyplot as plt
 import MySQLdb
 import pandas as pd
+import os
 
 class Database_Injection:
     
@@ -20,7 +21,7 @@ class Database_Injection:
             connection = MySQLdb.connect(
                 host = "localhost",
                 user = "root",
-                password = "123Qweasd0",
+                password = os.getenv("DB_PASSWORD"),
                 database = "stocksDB"
             )
             print("Connected to stocksDB!")
@@ -48,13 +49,17 @@ class Database_Injection:
             cursor.execute(insert_query, (ticker, row.Index, row.Open, row.High, row.Low, row.Close, row.Volume))
         connection.commit()
 
-    def update_database(self):
+    def update_database(self, delete_existing_data=False):
         connection = self.create_connection()
         if connection:
             for ticker in self.tickers_list:
                 print(f"Fetching data for {ticker}")
                 
-                # Step 1: Get the latest date for this ticker in the database
+                # Delete existing data for the ticker if needed
+                if delete_existing_data:
+                    self.delete_database(connection, ticker)
+
+                # Check the latest date for the ticker in the database
                 latest_date = self.get_latest_date_for_ticker(connection, ticker)
                 
                 if latest_date:
@@ -139,7 +144,17 @@ class Database_Injection:
 
             connection.close()
             return df
-
+        
+    """
+    Function to delete the existing database. I had to use it in order to fetch earlier data.
+    """
+    def delete_database(self, connection, ticker):
+        cursor = connection.cursor()
+        query = """
+        DELETE FROM stocks WHERE ticker = %s;
+        """
+        cursor.execute(query, (ticker,))
+        connection.commit()
 
 if __name__ == "__main__":
 
@@ -148,7 +163,7 @@ if __name__ == "__main__":
     """
     stocks_file = 'long_stock_symbol_list.txt'
     end = datetime.date.today() # today
-    start = datetime.date(2015, 1, 1) # 01/01/2015
+    start = datetime.date(1990, 1, 1) # 01/01/2015
     db_injector = Database_Injection(stocks_file, start, end)
-    db_injector.update_database()
+    db_injector.update_database(delete_existing_data=True)
     db_injector.plot_data('AAPL')
