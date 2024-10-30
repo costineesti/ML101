@@ -130,10 +130,10 @@ class Database_Injection:
             cursor = connection.cursor()
             query = """
             SELECT date, open_price, high_price, low_price, close_price, volume FROM stocks
-            WHERE ticker = %s
+            WHERE ticker = %s AND date BETWEEN %s AND %s
             ORDER BY date;
             """
-            cursor.execute(query, (ticker,))
+            cursor.execute(query, (ticker, self.start_date, self.end_date))
             rows = cursor.fetchall()
             if not rows:
                 print(f"No data was found for {ticker}")
@@ -165,5 +165,5 @@ if __name__ == "__main__":
     end = datetime.date.today() # today
     start = datetime.date(1990, 1, 1) # 01/01/2015
     db_injector = Database_Injection(stocks_file, start, end)
-    db_injector.update_database(delete_existing_data=True)
+    db_injector.update_database(delete_existing_data=False)
     db_injector.plot_data('AAPL')
