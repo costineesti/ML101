@@ -11,7 +11,6 @@ from database_injection.Database_Injection import Database_Injection
 class LinearRegression:
 
     def __init__(self, ticker, ticker_code, start, end):
-        self.ticker = ticker
         self.ticker_code = ticker_code
         self.start_date = start
         self.end_date = end
@@ -229,6 +228,6 @@ if __name__ == "__main__":
     ### FOR DEBUGGING PURPOSES
     ticker = 'AAPL'
     end = datetime.date.today() # last index
-    start = datetime.date(2015, 1, 1) # 01/01/2015
+    start = datetime.date(2020, 1, 1) # 01/01/2015
     linreg = LinearRegression('/Users/costinchitic/Documents/Github/ML101/database_injection/long_stock_symbol_list.txt', ticker, start, end)
     linreg._run()

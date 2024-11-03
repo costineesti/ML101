@@ -1,4 +1,3 @@
-import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import datetime
@@ -7,7 +6,6 @@ import os
 # Add the parent directory (ML101) to sys.path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from regression.linear_regression import LinearRegression
-from database_injection.Database_Injection import Database_Injection
 
 """
 Principal Component Analysis (PCA) is a dimensionality reduction technique that is used to reduce the number of features in a dataset.
@@ -19,11 +17,9 @@ class PCA:
 
     def __init__(self, no_components, ticker, ticker_code, start, end):
         self.no_components = no_components
-        self.ticker = ticker
         self.ticker_code = ticker_code
         self.start_date = start
         self.end_date = end
-        self.db_instance = Database_Injection(ticker, start, end)
         self.linear_regression_instance = LinearRegression(ticker, ticker_code, start, end)
 
     def prepare_data(self, df):
@@ -147,7 +143,7 @@ class PCA:
         return projected_data
     
     def _run(self):
-        ticker_stock_data = self.db_instance.fetch_ticker_data(ticker) # Get the stock info in DataFrame format
+        ticker_stock_data = self.linear_regression_instance.db_instance.fetch_ticker_data(ticker) # Get the stock info in DataFrame format
         X, y = self.prepare_data(ticker_stock_data) # Prepare the data for PCA
         Z = self.standardize(X) # Standardize the data
         # Compute the covariance matrix in order to substract the eigenvalues and eigenvectors
