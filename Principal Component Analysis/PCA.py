@@ -166,9 +166,9 @@ class PCA:
 
 if __name__ == "__main__":
 
-    ticker = 'AAPL'
+    ticker = 'TSLA'
     end = datetime.date.today() # last index
-    start = datetime.date(2015, 1, 1) # 01/01/2015
+    start = datetime.date(2020, 1, 1) # 01/01/2015
     no_components = 2 # Number of principal components to keep
     myPCA = PCA(no_components, '/Users/costinchitic/Documents/Github/ML101/database_injection/long_stock_symbol_list.txt', ticker, start, end)
     
