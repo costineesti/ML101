@@ -139,32 +139,44 @@ class LSTM:
         self.dWv.fill(0)
         self.dbv.fill(0)
 
-    def reset_forwardprop(self):
+    def reset_forwardprop(self, reset=False):
         self.outputs = []
-        self.gate_dictionary = {
-            'forget_gate' : {},
-            'input_gate' : {},
-            'output_gate' : {},
-            'candidate_gate' : {},
+        if not reset:
+            self.gate_dictionary = {
+                'forget_gate' : {},
+                'input_gate' : {},
+                'output_gate' : {},
+                'candidate_gate' : {},
 
-            'cell_state' : {-1:np.zeros((self.hidden_dim, 1))},
-            'hidden_state' : {-1:np.zeros((self.hidden_dim, 1))}
-        }
+                'cell_state' : {-1:np.zeros((self.hidden_dim, 1))},
+                'hidden_state' : {-1:np.zeros((self.hidden_dim, 1))}
+            }
+        else: # Fix for the first time step of the test data.
+            self.gate_dictionary = {
+                'forget_gate' : {},
+                'input_gate' : {},
+                'output_gate' : {},
+                'candidate_gate' : {},
+
+                'cell_state' : {-1:self.gate_dictionary['cell_state'][-1]},
+                'hidden_state' : {-1:self.gate_dictionary['hidden_state'][-1]}
+            }
 
 
     """
     Forward Propagation: Go through the input data and calculate the output for each time step.
     """
     
-    def forward_propagation(self):
+    def forward_propagation(self, X, reset=False):
         # https://medium.com/@CallMeTwitch/building-a-neural-network-zoo-from-scratch-the-long-short-term-memory-network-1cec5cf31b7
         # Just follow this implementation because it actually makes sense. At least I have a better understanding of what's going on.
-        self.reset_forwardprop()
+        self.reset_forwardprop(reset)
 
-        for t in range(len(self.X)):
+        for t in range(len(X)):
             concatenated_input = np.concatenate((self.gate_dictionary['hidden_state'][t-1],
-                                                  self.X[t].reshape(-1,1)),
+                                                  X[t].reshape(-1,1)),
                                                   axis=0)
+            var = X[t].reshape(-1,1)
             self.gate_dictionary['forget_gate'][t] = self.sigmoid(np.dot(self.Wf, concatenated_input) + self.bf)
             self.gate_dictionary['input_gate'][t] = self.sigmoid(np.dot(self.Wi, concatenated_input) + self.bi)
             self.gate_dictionary['output_gate'][t] = self.sigmoid(np.dot(self.Wo, concatenated_input) + self.bo)
@@ -183,7 +195,7 @@ class LSTM:
     """
     Backward Propagation: Calculate the gradients of the loss function w.r.t all parameters. Update weights and biases.
     """
-    def back_propagation(self):
+    def back_propagation(self, y):
         # reset gradients
         self.reset_gradients()
 
@@ -193,7 +205,7 @@ class LSTM:
         # Iterate backwards through times steps to calculate gradients
         for t in reversed(range(len(self.outputs))):
             y_hat = self.outputs[t]
-            y_true = self.y[t] # Convert to numpy array
+            y_true = y[t]
             loss += 0.5 * np.sum((y_hat - y_true)**2)
 
             # derivative of the loss function w.r.t the output
@@ -281,15 +293,15 @@ class LSTM:
         prediction_steps = time_steps[len(y_train):len(y_train) + len(predictions)]
         plt.plot(prediction_steps, predictions, color='red', label='Predicted Prices', linestyle='--')
         
-        plt.title('Stock Price Prediction - LSTM Model')
-        plt.xlabel('Time Step')
+        plt.title(f'Stock Price Prediction - LSTM Model for {self.ticker_code}')
+        plt.xlabel(f'{self.ticker_code} FROM {self.start_date} TO {self.end_date}')
         plt.ylabel('Normalized Price')
         plt.legend()
         plt.grid(True)
         plt.show()
 
 
-    def _runLSTM(self, epochs=100):
+    def _runLSTM(self, epochs=150):
         losses = []
         for epoch in range(epochs):
             self.forward_propagation()
@@ -308,12 +320,13 @@ class LSTM:
         plt.grid(True)
         plt.show()
 
+
     def train_and_test_LSTM(self, epochs = 100):
         losses = []
         X_train, X_test, y_train, y_test = self.prepare_sets(self.X, self.y)
         for epoch in range(epochs):
-            self.forward_propagation()
-            loss = self.back_propagation()
+            training_set = self.forward_propagation(X_train)
+            loss = self.back_propagation(y_train)
             losses.append(loss)
             if epoch % 10 == 0:
                 print(f"Epoch {epoch} - Loss: {loss}")
@@ -329,10 +342,9 @@ class LSTM:
         plt.show()
 
         # Predict on the test data
-        self.X, self.y = X_test, y_test
-        predictions = self.forward_propagation()
+        predictions = self.forward_propagation(X_test, reset=True)
 
-        # Since predictions might be wrapped in extra dimensions, let's squeeze them to 1D.
+        # Since predictions might be wrapped in extra dimensions, squeeze eliminates axes of length 1.
         predictions = np.squeeze(predictions)  # This will change shape from (55, 1, 1) to (55,)
         self.plot_results(y_train, y_test, predictions)
 
