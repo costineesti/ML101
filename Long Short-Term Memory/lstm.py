@@ -13,7 +13,7 @@ Source: https://costinchitic.co/notes/LSTM
 """
 class LSTM:
 
-    def __init__(self, list_of_tickers, ticker_code, start, end, hidden_dim=64, output_dim=1, learning_rate=0.002,  xavier_init='normal'):
+    def __init__(self, list_of_tickers, ticker_code, start, end, hidden_dim=64, output_dim=1, learning_rate=0.0015,  xavier_init='normal'):
         self.ticker = ticker
         self.ticker_code = ticker_code
         self.start_date = start
@@ -91,6 +91,10 @@ class LSTM:
 
     def prepare_data(self, df):
         df['date_ordinal'] = df['date'].map(datetime.date.toordinal) # convert date to numerical input
+        self.date_min, self.date_max = df['date_ordinal'].min(), df['date_ordinal'].max()
+        self.open_price_min, self.open_price_max = df['open_price'].min(), df['open_price'].max()
+        self.volume_min, self.volume_max = df['volume'].min(), df['volume'].max()
+        self.close_price_min, self.close_price_max = df['close_price'].min(), df['close_price'].max()
         # Normalize the data
         df['date_ordinal'] = (df['date_ordinal'] - df['date_ordinal'].min()) / (df['date_ordinal'].max() - df['date_ordinal'].min())
         df['open_price'] = (df['open_price'] - df['open_price'].min()) / (df['open_price'].max() - df['open_price'].min())
@@ -100,7 +104,7 @@ class LSTM:
         X = df[['date_ordinal', 'open_price', 'volume']].values
         y = df['close_price'].values
 
-        return X, y
+        return X,y
     
     def prepare_sets(self, X, y, split=0.75):
         split_index = int(split * len(X))
@@ -119,9 +123,9 @@ class LSTM:
     @staticmethod
     def tanh(x, derivative=False):
         if derivative:
-            return 1 - x**2 # When the derivative functions are called later, they will be called on variables that have already had tanh applied to them.
+            return 1 - np.power(x,2) # When the derivative functions are called later, they will be called on variables that have already had tanh applied to them.
         
-        return (np.exp(x) - np.exp(-x)) / (np.exp(x) + np.exp(-x)) # Maybe look into ReLU
+        return (np.exp(2*x) - 1) / (np.exp(2*x) + 1) # Maybe look into ReLU
     
     @staticmethod
     def softsign(x):
@@ -151,15 +155,19 @@ class LSTM:
                 'cell_state' : {-1:np.zeros((self.hidden_dim, 1))},
                 'hidden_state' : {-1:np.zeros((self.hidden_dim, 1))}
             }
-        else: # Fix for the first time step of the test data.
+        else: # Need to keep long term memory and hidden state
+            hidden_index = list(self.gate_dictionary['hidden_state'])[-1]
+            cell_index = list(self.gate_dictionary['cell_state'])[-1]
+            last_hidden_state = self.gate_dictionary['hidden_state'][hidden_index]
+            last_cell_state = self.gate_dictionary['cell_state'][cell_index]
             self.gate_dictionary = {
                 'forget_gate' : {},
                 'input_gate' : {},
                 'output_gate' : {},
                 'candidate_gate' : {},
 
-                'cell_state' : {-1:self.gate_dictionary['cell_state'][-1]},
-                'hidden_state' : {-1:self.gate_dictionary['hidden_state'][-1]}
+                'cell_state' : {-1:last_cell_state},
+                'hidden_state' : {-1:last_hidden_state}
             }
 
 
@@ -176,7 +184,6 @@ class LSTM:
             concatenated_input = np.concatenate((self.gate_dictionary['hidden_state'][t-1],
                                                   X[t].reshape(-1,1)),
                                                   axis=0)
-            var = X[t].reshape(-1,1)
             self.gate_dictionary['forget_gate'][t] = self.sigmoid(np.dot(self.Wf, concatenated_input) + self.bf)
             self.gate_dictionary['input_gate'][t] = self.sigmoid(np.dot(self.Wi, concatenated_input) + self.bi)
             self.gate_dictionary['output_gate'][t] = self.sigmoid(np.dot(self.Wo, concatenated_input) + self.bo)
@@ -277,7 +284,10 @@ class LSTM:
     
 
     def plot_results(self, y_train, y_test, predictions):
-        # Combine the training and test data so we can plot them together
+        # Bring back the original prices
+        y_train = y_train * (self.close_price_max - self.close_price_min) + self.close_price_min
+        y_test = y_test * (self.close_price_max - self.close_price_min) + self.close_price_min
+        predictions = predictions * (self.close_price_max - self.close_price_min) + self.close_price_min
         actual = np.concatenate((y_train, y_test))
 
         # Prepare the time axis
@@ -343,7 +353,6 @@ class LSTM:
 
         # Predict on the test data
         predictions = self.forward_propagation(X_test, reset=True)
-
         # Since predictions might be wrapped in extra dimensions, squeeze eliminates axes of length 1.
         predictions = np.squeeze(predictions)  # This will change shape from (55, 1, 1) to (55,)
         self.plot_results(y_train, y_test, predictions)
@@ -353,8 +362,8 @@ class LSTM:
 if __name__ == "__main__":
 
 ### FOR DEBUGGING PURPOSES
-    ticker = 'AMZN'
+    ticker = 'AAPL'
     end = datetime.date.today() # last index
-    start = datetime.date(2024, 1, 1) # 01/01/2015
-    lstm = LSTM('/Users/costinchitic/Documents/Github/ML101/database_injection/long_stock_symbol_list.txt', 'AAPL', start, end, xavier_init='uniform')
-    lstm.train_and_test_LSTM(epochs=100)
+    start = datetime.date(2023, 1, 1) # year, month, day
+    lstm = LSTM('/Users/costinchitic/Documents/Github/ML101/database_injection/long_stock_symbol_list.txt', ticker, start, end, xavier_init='uniform')
+    lstm.train_and_test_LSTM(epochs=200)
