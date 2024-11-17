@@ -13,7 +13,7 @@ Source: https://costinchitic.co/notes/LSTM
 """
 class LSTM:
 
-    def __init__(self, list_of_tickers, ticker_code, start, end, hidden_dim=64, output_dim=1, learning_rate=0.002,  xavier_init='normal'):
+    def __init__(self, list_of_tickers, ticker_code, start, end, hidden_dim=64, output_dim=1, learning_rate=0.001,  xavier_init='normal'):
         self.ticker = ticker
         self.ticker_code = ticker_code
         self.start_date = start
@@ -158,6 +158,10 @@ class LSTM:
         else: # Need to keep long term memory and hidden state
             hidden_index = list(self.gate_dictionary['hidden_state'])[-1]
             cell_index = list(self.gate_dictionary['cell_state'])[-1]
+            forget_index = list(self.gate_dictionary['forget_gate'])[-1]
+            input_index = list(self.gate_dictionary['input_gate'])[-1]
+            output_index = list(self.gate_dictionary['output_gate'])[-1]
+            candidate_index = list(self.gate_dictionary['candidate_gate'])[-1]
             last_hidden_state = self.gate_dictionary['hidden_state'][hidden_index]
             last_cell_state = self.gate_dictionary['cell_state'][cell_index]
             self.gate_dictionary = {
@@ -312,8 +316,8 @@ class LSTM:
     def _runLSTM(self, epochs=150):
         losses = []
         for epoch in range(epochs):
-            self.forward_propagation()
-            loss = self.back_propagation()
+            self.forward_propagation(self.X)
+            loss = self.back_propagation(self.y)
             losses.append(loss)
             if epoch % 10 == 0:
                 print(f"Epoch {epoch} - Loss: {loss}")
@@ -358,22 +362,24 @@ class LSTM:
 
     # Predict future stock prices
     def LSTM_PREDICT(self, num_days):
-        last_sequence = self.X[-1].reshape(1, -1)
+        volume_column = self.X[:, 2]
+        initial_date = (self.date_max - self.date_min) / (self.date_max + num_days - self.date_min)
         self.date_max = self.date_max + num_days
-        print(last_sequence)
+        last_sequence = self.X[-1].reshape(1, -1)
+        last_sequence[0][0] = initial_date
         future_predictions = []
 
         for i in range(num_days):
-            print(last_sequence)
             future_prediction = self.forward_propagation(last_sequence, reset=True)
             price_prediction = future_prediction[-1][0][0] * (self.close_price_max - self.close_price_min) + self.close_price_min
             future_predictions.append(price_prediction)
             # Create new sequence
             raw_next_date = self.date_max-num_days+i# Convert back to ordinal
             next_date = (raw_next_date - self.date_min) / (self.date_max - self.date_min)
-            price_prediction = np.clip(price_prediction, self.open_price_min, self.open_price_max) # [min, max] between
-            next_open_price = future_prediction[-1][0][0]
-            next_volume = last_sequence[-1][2] * (1 + np.random.uniform(-0.01, 0.01))
+            next_open_price = future_prediction[-1][0][0] + np.random.uniform(-0.03, 0.03) # Add some unpredictability
+            # Update volume based on last five days
+            next_volume = max(np.mean(volume_column[-5:]) + np.random.uniform(-0.2, 0.2), 0) # Always keep it greater than 0.
+            volume_column = np.append(volume_column, next_volume)
             last_sequence = np.array([[next_date, next_open_price, next_volume]])
 
         plt.figure(figsize=(10, 5))
@@ -384,7 +390,7 @@ class LSTM:
         future_time_steps = range(len(actual_prices), len(actual_prices) + num_days)
         plt.plot(future_time_steps, future_predictions, label='Future Predictions', linestyle='--')
         
-        plt.title('Stock Price Predictions')
+        plt.title(f'Stock Price Predictions for {self.ticker_code} for the next {num_days} days')
         plt.xlabel('Time Steps')
         plt.ylabel('Price')
         plt.legend()
@@ -395,9 +401,10 @@ class LSTM:
 if __name__ == "__main__":
 
 ### FOR DEBUGGING PURPOSES
-    ticker = 'AMZN'
+    ticker = 'BTC-USD'
     end = datetime.date.today() # last index
-    start = datetime.date(2024, 1, 1) # year, month, day
+    start = datetime.date(2023, 1, 1) # year, month, day
     lstm = LSTM('/Users/costinchitic/Documents/Github/ML101/database_injection/long_stock_symbol_list.txt', ticker, start, end, xavier_init='uniform')
-    lstm.train_and_test_LSTM(epochs=500)
-    lstm.LSTM_PREDICT(30)
+    # lstm.train_and_test_LSTM(epochs=500)
+    lstm._runLSTM(epochs=1200)
+    lstm.LSTM_PREDICT(60)
