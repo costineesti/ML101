@@ -85,8 +85,8 @@ class LSTM:
             'output_gate' : {},
             'candidate_gate' : {},
 
-            'cell_state' : {-1:np.zeros((hidden_dim, 1))},
-            'hidden_state' : {-1:np.zeros((hidden_dim, 1))}
+            'cell_state' : {-1:np.zeros((hidden_dim, 1))}, # long term memory
+            'hidden_state' : {-1:np.zeros((hidden_dim, 1))} # short term memory
         }
 
     def prepare_data(self, df):
@@ -401,9 +401,9 @@ class LSTM:
 if __name__ == "__main__":
 
 ### FOR DEBUGGING PURPOSES
-    ticker = 'BTC-USD'
+    ticker = 'AMZN'
     end = datetime.date.today() # last index
-    start = datetime.date(2023, 1, 1) # year, month, day
+    start = datetime.date(2024, 1, 1) # year, month, day
     lstm = LSTM('/Users/costinchitic/Documents/Github/ML101/database_injection/long_stock_symbol_list.txt', ticker, start, end, xavier_init='uniform')
     # lstm.train_and_test_LSTM(epochs=500)
     lstm._runLSTM(epochs=1200)

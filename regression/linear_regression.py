@@ -119,8 +119,9 @@ class LinearRegression:
         plt.grid(True)
         plt.show()
 
-    def plot_quarterly_analysis(self, quarter_predictions, full_data):
-        plt.figure(figsize=(10,6))
+    def plot_quarterly_analysis(self, quarter_predictions, full_data, years_of_analysis=1):
+        plt.figure(figsize=(10, 6))
+        
         # Plot the actual stock prices for the last year
         for keys in full_data.keys():
             TimeSeries = full_data[keys]
@@ -128,15 +129,23 @@ class LinearRegression:
 
         # Plot the linear regression for each quarter
         for i, (quarter, prediction, year_quarter) in enumerate(quarter_predictions):
-            plt.plot(quarter['date'], prediction, label=year_quarter, linestyle='--')
-            plt.fill_between(quarter['date'], 0, TimeSeries['close_price'].max()+50, prediction, alpha=0.3)
+            plt.plot(quarter['date'], prediction, linestyle='--')
+            plt.fill_between(quarter['date'], 0, TimeSeries['close_price'].max() + 50, alpha=0.3)
+            
+            # Place the quarter text at the bottom of the rectangle
+            mid_date = quarter['date'].iloc[len(quarter['date']) // 2]  # Find the midpoint of the date range
+            plt.text(mid_date, 0, year_quarter,  # Place text at the bottom (y=0)
+                    ha='center', va='bottom', fontsize=10, bbox=dict(facecolor='white', alpha=0.6))
 
         # Add vertical lines to separate quarters
         for i in range(1, len(quarter_predictions)):
             quarter_start = quarter_predictions[i][0]['date'].min()  # First date of the next quarter
             plt.axvline(x=quarter_start, color='black', linestyle=':')
 
-        plt.title(f'{ticker} - Quarterly Linear Regression for Last Year')
+        if years_of_analysis == 1:
+            plt.title(f'{ticker} - Quarterly Linear Regression for Last Year')
+        else:
+            plt.title(f'{ticker} - Quarterly Linear Regression for Last {years_of_analysis} Years')
         plt.xlabel('Date')
         plt.ylabel('Closing Price ($USD)')
         plt.grid(True)
@@ -171,9 +180,9 @@ class LinearRegression:
         print(f'Error of my custom implementation: {R2}')
         print(f'Error of STAS implementation: {R2_score_STAS}')
 
-    def filter_last_year_quarterly(self, df):
+    def filter_last_year_quarterly(self, df, years_of_analysis=1):
         most_recent_date = df['date'].max() # most recent date
-        last_year = most_recent_date - pd.DateOffset(years=1) # substract 1 year
+        last_year = most_recent_date - pd.DateOffset(years=years_of_analysis) # substract 1 year
         df_last_year = df[df['date'] >= last_year] # only data from last year.
 
         # Add a 'quarter' column and a 'year' column
@@ -189,10 +198,10 @@ class LinearRegression:
 
         return quarters_data
 
-    def _run_quarterly_analysis_for_last_year(self):
+    def _run_quarterly_analysis(self, years_of_analysis=1):
         # Run algorithm for last year and present on quarters (Q1, Q2, Q3, Q4)
         ticker_stock_data = self.db_instance.fetch_ticker_data(ticker) # Get the stock info in DataFrame format
-        quarters = self.filter_last_year_quarterly(ticker_stock_data)
+        quarters = self.filter_last_year_quarterly(ticker_stock_data, years_of_analysis)
 
         quarter_predictions = [] 
         for year_quarter, quarter_data in quarters.items(): #Return the dictionary's key-value pairs in tuples (a,b)
@@ -203,7 +212,7 @@ class LinearRegression:
                 predictions = self.compute_prediction(X, coeff_matrix)
                 quarter_predictions.append((quarter_data, predictions, year_quarter))
 
-        self.plot_quarterly_analysis(quarter_predictions, quarters)
+        self.plot_quarterly_analysis(quarter_predictions, quarters, years_of_analysis)
 
 
     def _run_projected_data_from_PCA(self, projected_data, y, ticker_stock_data):
@@ -220,7 +229,7 @@ class LinearRegression:
     def _run(self):
         
         self._run_full_data()
-        self._run_quarterly_analysis_for_last_year()
+        self._run_quarterly_analysis(years_of_analysis=2)
         
 
 if __name__ == "__main__":
@@ -228,6 +237,6 @@ if __name__ == "__main__":
     ### FOR DEBUGGING PURPOSES
     ticker = 'AMZN'
     end = datetime.date.today() # last index
-    start = datetime.date(2023, 1, 1) # 01/01/2015
+    start = datetime.date(2022, 1, 1) # 01/01/2015
     linreg = LinearRegression('/Users/costinchitic/Documents/Github/ML101/database_injection/long_stock_symbol_list.txt', ticker, start, end)
     linreg._run()
